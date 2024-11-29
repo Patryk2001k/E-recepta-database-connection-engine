@@ -17,7 +17,7 @@ public class Statement {
             Statement.statement = conn.createStatement();
             return Statement.statement.executeQuery(query);
         } catch (Exception e) {
-            System.out.println("Błąd podczas wykonywania zapytania: " + e);
+            e.printStackTrace(System.out);
             return null;
         }
     }

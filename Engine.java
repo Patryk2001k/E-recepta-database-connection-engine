@@ -3,8 +3,6 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,11 +15,11 @@ public class Engine {
     private final String DBURL;
 
     public Engine(String dbname, String user, String password, String DBURL){
-        DBConnection db = new DBConnection();
+        DBConnection db = new DBConnection(DBURL);
         engineConnection = db.connectToDb(dbname, user, password);
         this.statement = new Statement();
         this.DBURL = DBURL;
-        if (!doesDatabaseExist(dbname, user, password, DBURL)) {
+        if (doesDatabaseExist(dbname, user, password, DBURL)) {
             createDatabase(dbname, user, password, DBURL);
         }
     }
@@ -33,7 +31,7 @@ public class Engine {
         engineConnection = db.connectToDb(dbname, user, password);
         this.statement = new Statement();
         this.DBURL = "jdbc:postgresql://localhost:5432/";
-        if (!doesDatabaseExist(dbname, user, password, DBURL)) {
+        if (doesDatabaseExist(dbname, user, password, DBURL)) {
             createDatabase(dbname, user, password, DBURL);
         }
     }
@@ -44,7 +42,7 @@ public class Engine {
         engineConnection = db.connectToDb(dbname, "postgres", "admin");
         this.statement = new Statement();
         this.DBURL = "jdbc:postgresql://localhost:5432/";
-        if (!doesDatabaseExist(dbname, "postgres", "admin", DBURL)) {
+        if (doesDatabaseExist(dbname, "postgres", "admin", DBURL)) {
             createDatabase(dbname, "postgres", "admin", DBURL);
         }
     }
@@ -54,7 +52,7 @@ public class Engine {
         engineConnection = db.connectToDb("MedicalS", "postgres", "admin");
         this.statement = new Statement();
         this.DBURL = "jdbc:postgresql://localhost:5432/";
-        if (!doesDatabaseExist("MedicalS", "postgres", "admin", DBURL)) {
+        if (doesDatabaseExist("MedicalS", "postgres", "admin", DBURL)) {
             createDatabase("MedicalS", "postgres", "admin", DBURL);
         }
     }
@@ -62,12 +60,12 @@ public class Engine {
     private boolean doesDatabaseExist(String dbname, String user, String password, String dbUrl) {
         try (Connection tempConnection = DriverManager.getConnection(dbUrl, user, password)) {
             try (ResultSet rs = tempConnection.createStatement().executeQuery("SELECT 1 FROM pg_database WHERE datname = '" + dbname + "';")) {
-                return rs.next();
+                return !rs.next();
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return false;
+        return true;
     }
 
     private void createDatabase(String dbname, String user, String password, String dbUrl) {

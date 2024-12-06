@@ -170,14 +170,14 @@ public class UsersDAO {
             stmt.setString(2, password);
 
             try (ResultSet rs = stmt.executeQuery()) {
+                HashMap<String, String> user = new HashMap<>();
                 while (rs.next()) {
-                    HashMap<String, String> user = new HashMap<>();
                     user.put("userType", rs.getString("user_type"));
                     user.put("name", rs.getString("name"));
                     user.put("surname", rs.getString("surname"));
                     userList.add(user);
                 }
-                if(rs.next()){
+                if(!user.isEmpty()){
                     return userList;
                 }
                 else{

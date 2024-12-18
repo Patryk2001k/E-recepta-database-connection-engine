@@ -19,6 +19,8 @@ public class Main {
         PharmacyWorkerDAO newPharmacyWorkerDAO = new PharmacyWorkerDAO(newConnection);
         PharmacyDAO newPharmacyDAO = new PharmacyDAO(newConnection);
         MedicinesDAO medicinesDAO = new MedicinesDAO(newConnection);
+        DrugListDAO drugListDAO = new DrugListDAO(newConnection);
+        AvailabilityDrugDAO availabilityDrugDAO = new AvailabilityDrugDAO(newConnection);
         List<HashMap<String, String>> testList = new ArrayList<>();
         List<HashMap<String, String>> testList2 = new ArrayList<>();
 
@@ -33,7 +35,10 @@ public class Main {
         testList = medicinesDAO.addMedicine("firstMedicine", "description", 12.50);
         testList = medicinesDAO.getAllMedicines();
 
-
+        testList = drugListDAO.insertDrugToList("tphlogin1", "firstMedicine", 10, "tplogin1", "poczta");
+        testList = drugListDAO.getDrugsByPharmacistLogin("tphlogin1");
+        testList = availabilityDrugDAO.insertAvailabilityDrug("firstMedicine", "street1", 3);
+        testList = availabilityDrugDAO.getAvailabilityByPharmacyAddress("street1");
         System.out.println(testList);
 
 
@@ -61,6 +66,10 @@ public class Main {
 
 
         /*
+
+
+
+
         //Przykładowe wywołania metod z GeneralDAO
         GeneralDAO generalDAO = new GeneralDAO(newConnection);
 

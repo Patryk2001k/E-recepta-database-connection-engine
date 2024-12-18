@@ -1,4 +1,6 @@
 import utils.EngineSettings;
+import utils.TableMapper;
+
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -12,6 +14,8 @@ public class Engine {
     private final Connection engineConnection;
     private final Statement statement;
     private final String DBURL;
+    private final EngineSettings engineSettings = new EngineSettings();
+    private final TableMapper tableMapper = new TableMapper();
     private final EngineStartup engineStartup = new EngineStartup();
 
     public Engine(String dbname, String user, String password, String DBURL){
@@ -22,6 +26,7 @@ public class Engine {
         }
         engineConnection = db.connectToDb(dbname, user, password);
         this.DBURL = DBURL;
+        engineSettings.setDbName(dbname);
     }
 
     //Default DBURL leads to localhost -> jdbc:postgresql://localhost:5432/
@@ -34,6 +39,7 @@ public class Engine {
             createDatabase(dbname, user, password, DBURL);
         }
         engineConnection = db.connectToDb(dbname, user, password);
+        engineSettings.setDbName(dbname);
     }
 
     //localhost connection
@@ -45,6 +51,7 @@ public class Engine {
             createDatabase(dbname, "postgres", "admin", DBURL);
         }
         engineConnection = db.connectToDb(dbname, "postgres", "admin");
+        engineSettings.setDbName(dbname);
     }
 
     public Engine(){
@@ -55,6 +62,7 @@ public class Engine {
             createDatabase("medicals", "postgres", "admin", DBURL);
         }
         engineConnection = db.connectToDb("medicals", "postgres", "admin");
+        engineSettings.setDbName("medicals");
     }
 
     private boolean doesDatabaseExist(String dbname, String user, String password, String dbUrl) {
@@ -80,6 +88,7 @@ public class Engine {
     void start() {
         this.engineStartup.run(engineConnection);
         Map<String, String> mapOfTables = new LinkedHashMap<>(this.engineStartup.returnMapOfTables());
+        engineSettings.setDbSchema(tableMapper.mapTables(mapOfTables));
     }
 
 

@@ -145,4 +145,41 @@ public class UsersDAO {
         userList.add(staticInfo1);
         return userList;
     }
+
+    public List<HashMap<String, String>> getUserByLogin(String login) {
+        List<HashMap<String, String>> userList = new ArrayList<>();
+
+        HashMap<String, String> staticInfo1 = new HashMap<>(message.getDefaultErrorMessageAsHashMap());
+        userList.add(staticInfo1);
+
+        String query = "SELECT id, login, user_type, name, surname FROM users WHERE login = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, login);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                HashMap<String, String> user = new HashMap<>();
+                while (rs.next()) {
+                    user.put("id", rs.getString("id"));
+                    user.put("login", rs.getString("login"));
+                    user.put("userType", rs.getString("user_type"));
+                    user.put("name", rs.getString("name"));
+                    user.put("surname", rs.getString("surname"));
+                }
+                if (user.isEmpty()) {
+                    staticInfo1.replace(message.getHashIdStatus(), "error");
+                    staticInfo1.replace(message.getHashIdUserFriendlyError(), "There is no user for the given login");
+                    userList.set(0, staticInfo1);
+                } else {
+                    userList.add(user);
+                }
+            }
+        } catch (SQLException e) {
+            staticInfo1 = errorHandler.handleSQLException(e, staticInfo1, message);
+            userList.set(0, staticInfo1);
+        }
+
+        return userList;
+    }
+
+
 }

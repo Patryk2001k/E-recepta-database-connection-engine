@@ -3,6 +3,7 @@ package dao;
 import utils.Message;
 import error.handlers.ErrorHandler;
 
+import javax.print.DocFlavor;
 import javax.print.event.PrintJobAttributeListener;
 import java.sql.*;
 import java.util.ArrayList;
@@ -19,62 +20,111 @@ public class DrugListDAO {
         this.conn = conn;
     }
 
-    public List<HashMap<String, String>> getDrugsByPharmacistLogin(String pharmacistLogin) {
+    public List<HashMap<String, String>> getDrugsByRecipeId(String recipeId) {
         List<HashMap<String, String>> result = new ArrayList<>();
         HashMap<String, String> staticInfo = new HashMap<>(message.getDefaultErrorMessageAsHashMap());
-
+        result.add(staticInfo);
         try {
-            String queryGetId = "SELECT id FROM users WHERE login = ?";
-            Integer pharmacistId = null;
-
-            try (PreparedStatement stmtGetId = conn.prepareStatement(queryGetId)) {
-                stmtGetId.setString(1, pharmacistLogin);
-                try (ResultSet rsGetId = stmtGetId.executeQuery()) {
-                    if (rsGetId.next()) {
-                        pharmacistId = rsGetId.getInt("id");
-                    }
-                }
-            }
-
-            if (pharmacistId == null) {
-                staticInfo.replace(message.getHashIdStatus(), "error");
-                staticInfo.replace(message.getHashIdUserFriendlyError(), "Pharmacist not found");
-                result.add(staticInfo);
-                return result;
-            }
-
-            // Pobranie listy leków przypisanych do farmaceuty
             String query = """
-            SELECT dl.recipeid, m.name AS drug_name, dl.amount, dl.fulfill_method 
+            SELECT m.name AS drug_name, dl.amount, dl.fulfill_method, u.login AS pharmacist_login 
             FROM drug_list dl
             JOIN medicines m ON dl.drugid = m.drugid
-            WHERE dl.pharmacistid = ?
+            LEFT JOIN users u ON dl.pharmacistid = u.id
+            WHERE dl.recipeid = ?
         """;
 
             try (PreparedStatement stmt = conn.prepareStatement(query)) {
-                stmt.setInt(1, pharmacistId);
+                stmt.setInt(1, Integer.parseInt(recipeId));
 
                 try (ResultSet rs = stmt.executeQuery()) {
                     while (rs.next()) {
                         HashMap<String, String> drugInfo = new HashMap<>();
-                        drugInfo.put("recipeId", String.valueOf(rs.getInt("recipeid")));
                         drugInfo.put("drugName", rs.getString("drug_name"));
                         drugInfo.put("amount", String.valueOf(rs.getInt("amount")));
                         drugInfo.put("fulfillMethod", rs.getString("fulfill_method"));
-                        result.add(drugInfo);
+                        drugInfo.put("pharmacistLogin", rs.getString("pharmacist_login"));
+                        result.set(0, drugInfo);
                     }
                 }
-                staticInfo.replace(message.getHashIdStatus(), "success");
+
+                if (result.isEmpty()) {
+                    staticInfo.replace(message.getHashIdStatus(), "error");
+                    staticInfo.replace(message.getHashIdUserFriendlyError(), "No drugs found for the given recipe ID");
+                    result.set(0, staticInfo);
+                } else {
+                    staticInfo.replace(message.getHashIdStatus(), "success");
+                }
             }
         } catch (SQLException e) {
             staticInfo = errorHandler.handleSQLException(e, staticInfo, message);
-        }
-
-        if (result.isEmpty()) {
-            result.add(staticInfo);
+            result.set(0, staticInfo);
         }
         return result;
     }
+
+    public List<HashMap<String, String>> updateDrugList(
+            String recipeId, String drugName, String pharmacistLogin, String fulfillMethod) {
+
+        List<HashMap<String, String>> result = new ArrayList<>();
+        HashMap<String, String> staticInfo = new HashMap<>(message.getDefaultErrorMessageAsHashMap());
+        result.add(staticInfo);
+        MedicinesDAO medicinesDAO = new MedicinesDAO(this.conn);
+        UsersDAO usersDAO = new UsersDAO(this.conn);
+
+        try {
+            List<HashMap<String, String>> pharmacistData = usersDAO.getUserByLogin(pharmacistLogin);
+            if (pharmacistData.isEmpty()) {
+                staticInfo.replace(message.getHashIdStatus(), "error");
+                staticInfo.replace(message.getHashIdUserFriendlyError(), "Nie znaleziono takiego farmaceuty");
+                result.set(0, staticInfo);
+                return result;
+            }
+
+            String pharmacistId = pharmacistData.get(1).get("id");
+
+            List<HashMap<String, String>> medicineData = medicinesDAO.getMedicine(drugName);
+            if (medicineData.isEmpty()) {
+                staticInfo.replace(message.getHashIdStatus(), "error");
+                staticInfo.replace(message.getHashIdUserFriendlyError(), "Nie znaleziono takiego leku");
+                result.set(0, staticInfo);
+                return result;
+            }
+            String drugId = medicineData.get(1).get("drugId");
+
+            String query = """
+            UPDATE drug_list
+            SET pharmacistid = ?, fulfill_method = ?
+            WHERE recipeid = ? AND drugid = ?
+        """;
+
+            try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                stmt.setInt(1, Integer.parseInt(pharmacistId));
+                stmt.setString(2, fulfillMethod);
+                stmt.setInt(3, Integer.parseInt(recipeId));
+                stmt.setInt(4, Integer.parseInt(drugId));
+
+                int rowsUpdated = stmt.executeUpdate();
+
+                if (rowsUpdated > 0) {
+                    staticInfo.replace(message.getHashIdStatus(), "success");
+                    staticInfo.replace(message.getHashIdUserFriendlyError(), "Entries updated successfully");
+                } else {
+                    staticInfo.replace(message.getHashIdStatus(), "error");
+                    staticInfo.replace(message.getHashIdUserFriendlyError(),
+                            "No entries found for the given recipeId and drugName");
+                }
+                result.set(0, staticInfo);
+            }
+        } catch (SQLException e) {
+            staticInfo = errorHandler.handleSQLException(e, staticInfo, message);
+            result.set(0, staticInfo);
+        }
+
+        return result;
+    }
+
+
+
 
 
     private Optional<Integer> getPharmacistId(String pharmacistLogin) {
@@ -125,17 +175,21 @@ public class DrugListDAO {
         return Optional.empty();
     }
 
-    public List<HashMap<String, String>> insertDrugToList(String pharmacistLogin, String drugName, int amount, String patientLogin, String fulfillMethod) {
+    /*
+    * Zrobić dwie metody:
+    *
+    * W jednej dostaje to co poniżej a w drugiej:
+    * - String drugName
+    * - int amount
+    * - String patientLogin
+    *
+    * Zrobić metodę na update danej listy leków
+    * */
+
+
+    public List<HashMap<String, String>> insertDrugToList(String prescriptionId, String drugName, int amount) {
         List<HashMap<String, String>> result = new ArrayList<>();
         HashMap<String, String> staticInfo = new HashMap<>(message.getDefaultErrorMessageAsHashMap());
-
-        Optional<Integer> pharmacistIdOpt = getPharmacistId(pharmacistLogin);
-        if (pharmacistIdOpt.isEmpty()) {
-            staticInfo.replace(message.getHashIdStatus(), "error");
-            staticInfo.replace(message.getHashIdUserFriendlyError(), "Pharmacist not found");
-            result.add(staticInfo);
-            return result;
-        }
 
         Optional<Integer> drugIdOpt = getDrugId(drugName);
         if (drugIdOpt.isEmpty()) {
@@ -145,25 +199,15 @@ public class DrugListDAO {
             return result;
         }
 
-        Optional<Integer> recipeIdOpt = getRecipeId(patientLogin);
-        if (recipeIdOpt.isEmpty()) {
-            staticInfo.replace(message.getHashIdStatus(), "error");
-            staticInfo.replace(message.getHashIdUserFriendlyError(), "Recipe not found");
-            result.add(staticInfo);
-            return result;
-        }
-
         String insertDrugQuery = """
         INSERT INTO drug_list (recipeid, drugid, amount, pharmacistid, fulfill_method)
-        VALUES (?, ?, ?, ?, ?);
+        VALUES (?, ?, ?, NULL, 'manual');
     """;
 
         try (PreparedStatement insertStmt = conn.prepareStatement(insertDrugQuery)) {
-            insertStmt.setInt(1, recipeIdOpt.get());
+            insertStmt.setInt(1, Integer.parseInt(prescriptionId));
             insertStmt.setInt(2, drugIdOpt.get());
             insertStmt.setInt(3, amount);
-            insertStmt.setInt(4, pharmacistIdOpt.get());
-            insertStmt.setString(5, fulfillMethod);
 
             int rowsInserted = insertStmt.executeUpdate();
             if (rowsInserted > 0) {

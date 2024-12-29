@@ -7,8 +7,7 @@ import java.util.regex.Pattern;
 public class TableMapper {
     public List<TableSchema> mapTables(Map<String, String> tablesToCreate) {
         List<TableSchema> tableSchemas = new ArrayList<>();
-        Pattern tablePattern = Pattern.compile("CREATE TABLE (\\w+) \\((.*?)\\)", Pattern.DOTALL);
-        Pattern columnPattern = Pattern.compile("(\\w+)\\s+([A-Z0-9\\(\\),\\s]+)(?:,|$)", Pattern.CASE_INSENSITIVE);
+        Pattern tablePattern = Pattern.compile("CREATE TABLE (\\w+) \\((.*)\\)", Pattern.DOTALL);
 
         for (Map.Entry<String, String> entry : tablesToCreate.entrySet()) {
             String createQuery = entry.getValue();
@@ -16,15 +15,18 @@ public class TableMapper {
 
             if (tableMatcher.find()) {
                 String tableName = tableMatcher.group(1);
-                String columnsPart = tableMatcher.group(2);
+                String columnsPart = tableMatcher.group(2).trim();
 
                 TableSchema schema = new TableSchema(tableName);
-                Matcher columnMatcher = columnPattern.matcher(columnsPart);
+                List<String> columns = extractColumns(columnsPart);
 
-                while (columnMatcher.find()) {
-                    String columnName = columnMatcher.group(1);
-                    String columnType = columnMatcher.group(2).trim();
-                    schema.addColumn(columnName, columnType);
+                for (String column : columns) {
+                    String[] columnParts = column.trim().split("\\s+", 2);
+                    if (columnParts.length == 2) {
+                        String columnName = columnParts[0];
+                        String columnType = columnParts[1];
+                        schema.addColumn(columnName, columnType);
+                    }
                 }
 
                 tableSchemas.add(schema);
@@ -32,5 +34,34 @@ public class TableMapper {
         }
 
         return tableSchemas;
+    }
+
+    private List<String> extractColumns(String columnsPart) {
+        List<String> columns = new ArrayList<>();
+        StringBuilder currentColumn = new StringBuilder();
+        int openParentheses = 0;
+
+        for (char c : columnsPart.toCharArray()) {
+            if (c == '(') {
+                openParentheses++;
+            } else if (c == ')') {
+                openParentheses--;
+            }
+
+            if (c == ',' && openParentheses == 0) {
+                // Koniec definicji kolumny
+                columns.add(currentColumn.toString().trim());
+                currentColumn.setLength(0);
+            } else {
+                currentColumn.append(c);
+            }
+        }
+
+        // Dodaj ostatnią kolumnę, jeśli istnieje
+        if (currentColumn.length() > 0) {
+            columns.add(currentColumn.toString().trim());
+        }
+
+        return columns;
     }
 }

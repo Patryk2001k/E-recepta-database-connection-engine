@@ -3,7 +3,7 @@ package utils;
 import java.util.ArrayList;
 import java.util.List;
 
-class TableSchema {
+public class TableSchema {
     private final String tableName;
     private final List<Column> columns;
 
@@ -22,21 +22,6 @@ class TableSchema {
 
     public List<Column> getColumns() {
         return columns;
-    }
-
-    static class Column {
-        private final String name;
-        private final String type;
-
-        public Column(String name, String type) {
-            this.name = name;
-            this.type = type;
-        }
-
-        @Override
-        public String toString() {
-            return name + " " + type;
-        }
     }
 
     @Override

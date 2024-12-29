@@ -20,6 +20,7 @@ public class RecipeDAO {
     public List<HashMap<String, String>> insertRecipe(String doctorLogin, String patientLogin, Date date) {
         List<HashMap<String, String>> result = new ArrayList<>();
         HashMap<String, String> staticInfo = new HashMap<>(message.getDefaultErrorMessageAsHashMap());
+        HashMap<String, String> resultInfo = new HashMap<>();
 
         try {
             // Pobranie doctorId
@@ -42,21 +43,27 @@ public class RecipeDAO {
 
             // Wstawienie recepty
             String query = """
-                INSERT INTO recipe (date, doctorid, patientid) 
-                VALUES (?, ?, ?)
-            """;
+            INSERT INTO recipe (date, doctorid, patientid)
+            VALUES (?, ?, ?)
+            RETURNING recipeid
+        """;
             try (PreparedStatement stmt = conn.prepareStatement(query)) {
                 stmt.setDate(1, date);
                 stmt.setInt(2, doctorId);
                 stmt.setInt(3, patientId);
 
-                int rowsInserted = stmt.executeUpdate();
-                if (rowsInserted > 0) {
-                    staticInfo.replace(message.getHashIdStatus(), "success");
-                    staticInfo.replace(message.getHashIdUserFriendlyError(), "Recipe inserted successfully");
-                } else {
-                    staticInfo.replace(message.getHashIdStatus(), "error");
-                    staticInfo.replace(message.getHashIdUserFriendlyError(), "Failed to insert recipe");
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        int recipeId = rs.getInt("recipeid");
+                        staticInfo.replace(message.getHashIdStatus(), "success");
+                        staticInfo.replace(message.getHashIdUserFriendlyError(), "Dodano receptę");
+
+                        // Dodanie ID recepty do resultInfo
+                        resultInfo.put("recipeId", String.valueOf(recipeId));
+                    } else {
+                        staticInfo.replace(message.getHashIdStatus(), "error");
+                        staticInfo.replace(message.getHashIdUserFriendlyError(), "Nie udało się dodać recepty");
+                    }
                 }
             }
         } catch (SQLException e) {
@@ -64,8 +71,70 @@ public class RecipeDAO {
         }
 
         result.add(staticInfo);
+        result.add(resultInfo);
         return result;
     }
+
+    public List<HashMap<String, String>> getRecipebyId(String recipeId) {
+        List<HashMap<String, String>> result = new ArrayList<>();
+        HashMap<String, String> staticInfo = new HashMap<>(message.getDefaultErrorMessageAsHashMap());
+        result.add(staticInfo);
+
+        try {
+            String query = """
+            SELECT
+                r.recipeid,
+                r.date AS recipe_date,
+                doc.login AS doctor_login,
+                pat.login AS patient_login,
+                m.name AS drug_name,
+                dl.amount,
+                dl.fulfill_method,
+                ph.login AS pharmacist_login
+            FROM recipe r
+            LEFT JOIN drug_list dl ON r.recipeid = dl.recipeid
+            LEFT JOIN medicines m ON dl.drugid = m.drugid
+            LEFT JOIN users doc ON r.doctorid = doc.id
+            LEFT JOIN users pat ON r.patientid = pat.id
+            LEFT JOIN users ph ON dl.pharmacistid = ph.id
+            WHERE r.recipeid = ?
+        """;
+
+            try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                stmt.setInt(1, Integer.parseInt(recipeId));
+
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        HashMap<String, String> recipeDetails = new HashMap<>();
+                        recipeDetails.put("recipeId", rs.getString("recipeid"));
+                        recipeDetails.put("recipeDate", rs.getString("recipe_date"));
+                        recipeDetails.put("doctorLogin", rs.getString("doctor_login"));
+                        recipeDetails.put("patientLogin", rs.getString("patient_login"));
+                        recipeDetails.put("drugName", rs.getString("drug_name"));
+                        recipeDetails.put("amount", rs.getString("amount"));
+                        recipeDetails.put("fulfillMethod", rs.getString("fulfill_method"));
+                        recipeDetails.put("pharmacistLogin", rs.getString("pharmacist_login"));
+                        result.add(recipeDetails);
+                    }
+                }
+
+                if (result.size() == 1) { // Tylko defaultowy wynik w liście
+                    staticInfo.replace(message.getHashIdStatus(), "error");
+                    staticInfo.replace(message.getHashIdUserFriendlyError(), "Dla podanego id nic nie znaleziono");
+                } else {
+                    staticInfo.replace(message.getHashIdStatus(), "success");
+                    staticInfo.replace(message.getHashIdUserFriendlyError(), "Udało się pobrać dane");
+                }
+                result.set(0, staticInfo);
+            }
+        } catch (SQLException e) {
+            staticInfo = errorHandler.handleSQLException(e, staticInfo, message);
+            result.set(0, staticInfo);
+        }
+
+        return result;
+    }
+
 
     public List<HashMap<String, String>> getRecipes(String login, String role) {
         List<HashMap<String, String>> result = new ArrayList<>();

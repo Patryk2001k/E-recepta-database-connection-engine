@@ -88,6 +88,7 @@ public class MedicinesDAO {
         List<HashMap<String, String>> result = new ArrayList<>();
 
         HashMap<String, String> staticInfo = new HashMap<>(message.getDefaultErrorMessageAsHashMap());
+        result.add(staticInfo);
 
         try (PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setString(1, name);
@@ -102,12 +103,13 @@ public class MedicinesDAO {
                 } else {
                     staticInfo.replace(message.getHashIdStatus(), "error");
                     staticInfo.replace(message.getHashIdUserFriendlyError(), "Medicine not found");
+                    result.set(0, staticInfo);
                 }
             }
         } catch (SQLException e) {
             staticInfo = errorHandler.handleSQLException(e, staticInfo, message);
+            result.set(0, staticInfo);
         }
-        result.add(staticInfo);
         return result;
     }
 

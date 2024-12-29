@@ -1,6 +1,7 @@
 import utils.EngineSettings;
 import utils.TableMapper;
-
+import utils.TableSchema;
+import utils.Column;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -138,6 +139,10 @@ public class Engine {
     }
 
     public Connection returnConnection(){
-        return engineConnection;
+        return this.engineConnection;
+    }
+
+    public EngineSettings returnEngineSettings(){
+        return this.engineSettings;
     }
 }

@@ -27,6 +27,7 @@ public class Main {
         testList = newUsersDAO.createUser("tdlogin1", "tdpassword1", "doctor", "dname1", "dsurname1");
         testList = newUsersDAO.createUser("tplogin1", "tppassword1", "patient", "pname1", "psurname1");
         testList = newUsersDAO.createUser("tphlogin1", "tphpassword1", "pharmacist", "pname11", "psurname11");
+        testList = newUsersDAO.createUser("tphlogin2", "tphpassword2", "pharmacist", "pname12", "psurname12");
         Date d1 = new Date(2020, 1, 14);
         testList = newRecipeDAO.insertRecipe("tdlogin1", "tplogin1", d1);
         testList = newRecipeDAO.getRecipes("tdlogin1", "doctor");
@@ -35,11 +36,13 @@ public class Main {
         testList = medicinesDAO.addMedicine("firstMedicine", "description", 12.50);
         testList = medicinesDAO.getAllMedicines();
 
-        testList = drugListDAO.insertDrugToList("tphlogin1", "firstMedicine", 10, "tplogin1", "poczta");
-        testList = drugListDAO.getDrugsByPharmacistLogin("tphlogin1");
-        testList = availabilityDrugDAO.insertAvailabilityDrug("firstMedicine", "street1", 3);
-        testList = availabilityDrugDAO.getAvailabilityByPharmacyAddress("street1");
+        testList = medicinesDAO.getMedicine("firstMedicine");
+        testList = drugListDAO.updateDrugList("1", "firstMedicine", "tphlogin2", "test12");
         System.out.println(testList);
+
+
+        //testList = drugListDAO.insertDrugToListLite("firstMedicine", 10, "tplogin1");
+        //System.out.println(testList);
 
 
         //testList = newUsersDAO.createUser("testUser2", "password2", "patient", "testName1", "TestSurname1");
